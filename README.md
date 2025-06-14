@@ -3,7 +3,7 @@ This is the database deign, schema script, and queries optimization for a genera
 
 ### 🗂️ Entity Relationship Diagram
 
-![ERD](./assets/erd.png)
+![ERD](./assets/erd.webp)
 
 ### 📄 Database Schema & Query Scripts
 
