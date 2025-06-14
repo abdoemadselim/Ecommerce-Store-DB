@@ -191,7 +191,7 @@ Each section below compares the **original query** with its **optimized version*
 ```sql
 SELECT order_date, SUM(total_amount) AS total_amount
 FROM `order`
-WHERE order_date = '2024-01-10'
+WHERE order_date = '2024-01-10' -- This's just an example date
 GROUP BY order_date;
 ```
 
@@ -200,7 +200,7 @@ GROUP BY order_date;
 ```sql
 SELECT order_date, revenue
 FROM daily_report
-WHERE order_date = '2024-01-10';
+WHERE order_date = '2024-01-10'; -- This's just an example date
 ```
 
 #### 📊 Performance Comparison
@@ -258,7 +258,7 @@ SELECT
 FROM product p INNER JOIN order_item oi
 ON p.id = oi.product_id
 INNER JOIN `order` o ON o.id = oi.order_id
-WHERE o.order_date >= '2022-01-01' AND o.order_date < '2022-02-01'
+WHERE o.order_date >= '2022-01-01' AND o.order_date < '2022-02-01' -- This's just an example date
 GROUP BY p.id
 ORDER BY total_quantity DESC
 LIMIT 5;
@@ -269,7 +269,7 @@ LIMIT 5;
 ```sql
 SELECT *
 FROM monthly_report
-WHERE sale_month = '2022-01-01'
+WHERE sale_month = '2022-01-01' -- This's just an example date
 ORDER BY total_quantity DESC;
 ```
 
