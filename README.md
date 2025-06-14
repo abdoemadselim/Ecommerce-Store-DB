@@ -26,7 +26,7 @@ reports (daily, monthly, and customer-based) queries using normalized VS denorma
 
 ### Summary tables 
 ```sql
--- SUMMARY TABLE FOR THE DAILY REVENUE 
+-- SUMMARY TABLE FOR THE DAILY REVENUE
 CREATE TABLE daily_report(
 	order_date DATE NOT NULL PRIMARY KEY,
 	revenue DECIMAL(12, 2)
@@ -38,7 +38,7 @@ CREATE TABLE monthly_report(
     product_id INT,
     product_name VARCHAR(50),
     total_quantity INT UNSIGNED,
-    
+
     PRIMARY KEY(sale_month, product_id)
 );
 ```
@@ -53,7 +53,7 @@ These are run manually once to initialize the tables with historical data.
 #### ✅ Populate `daily_report` with historical daily revenue:
 
 ```sql
-INSERT INTO daily_report(order_date, revenue) 
+INSERT INTO daily_report(order_date, revenue)
 SELECT
     order_date,
     SUM(total_amount) AS total_amount
@@ -124,20 +124,20 @@ CREATE PROCEDURE refresh_monthly_report()
 BEGIN
 	-- Clear this month’s previous data
 	DELETE FROM monthly_report
-	WHERE sale_month = DATE_FORMAT(CURRENT_DATE, '%Y-%m-01');    
+	WHERE sale_month = DATE_FORMAT(CURRENT_DATE, '%Y-%m-01');
 
 	-- Insert updated top 5 products for the current month
-	INSERT INTO monthly_report(sale_month, product_id, product_name, total_quantity)
+	INSERT INTO monthly_report (sale_month, product_id, product_name, total_quantity)
 	SELECT
 		DATE_FORMAT(o.order_date, '%Y-%m-01') AS sale_month,
-		p.id,
-		p.name,
+		p.id AS product_id,
+		p.name AS product_name,
 		SUM(oi.quantity) AS total_quantity
-	FROM product p
-	JOIN order_item oi ON p.id = oi.product_id
-	JOIN `order` o ON o.id = oi.order_id
-	WHERE o.order_date >= DATE_FORMAT(CURRENT_DATE, '%Y-%m-01')
-	  AND o.order_date < DATE_FORMAT(DATE_ADD(CURRENT_DATE, INTERVAL 1 MONTH), '%Y-%m-01')
+	FROM product p INNER JOIN order_item oi
+	ON p.id = oi.product_id
+	INNER JOIN `order` o ON o.id = oi.order_id
+	WHERE o.order_date >= DATE_FORMAT(CURRENT_DATE, '%Y-%m-1')
+          AND o.order_date < DATE_FORMAT(DATE_ADD(CURRENT_DATE, INTERVAL 1 MONTH), '%Y-%m-1')
 	GROUP BY sale_month, p.id;
 END //
 DELIMITER ;
@@ -198,8 +198,8 @@ GROUP BY order_date;
 #### ⚡ Improved Query
 
 ```sql
-SELECT order_date, revenue 
-FROM daily_report 
+SELECT order_date, revenue
+FROM daily_report
 WHERE order_date = '2024-01-10';
 ```
 
@@ -238,18 +238,22 @@ Using the summary table provides two main advantages:
 
 #### Sample output
 ```sql
-| order_date | revenue   |
-|------------|-----------|
-| 2024-01-10 | 30248.92  |
+| sale_month | product_id | product_name      | total_quantity |
+|------------|------------|-------------------|----------------|
+| 2022-01-01 | 25         | Wireless Mouse    | 124            |
+| 2022-01-01 | 74         | Gaming Keyboard   | 119            |
+| 2022-01-01 | 72         | USB-C Cable       | 102            |
+| 2022-01-01 | 75         | USB-C Cable2      | 90             |
+| 2022-01-01 | 90         | USB-C Cable3      | 80             |
 ```
 
 #### 🔍 Original Query
 
 ```sql
-SELECT 
-	DATE_FORMAT('2022-01-01', '%Y-%m-01') AS sale_month, 
-    p.id AS product_id, 
-    p.name AS product_name, 
+SELECT
+	DATE_FORMAT('2022-01-01', '%Y-%m-01') AS sale_month,
+    p.id AS product_id,
+    p.name AS product_name,
     SUM(quantity) as total_quantity
 FROM product p INNER JOIN order_item oi
 ON p.id = oi.product_id
@@ -263,7 +267,7 @@ LIMIT 5;
 #### ⚡ Improved Query
 
 ```sql
-SELECT * 
+SELECT *
 FROM monthly_report
 WHERE sale_month = '2022-01-01'
 ORDER BY total_quantity DESC;
@@ -280,8 +284,9 @@ Using the `monthly_report` summary table provides two main advantages:
 
 2. **The triple join is skipped**: join between `product`, `order`, `order_item` tables is skipped
 
-3. **Efficient indexing**: It leverages the summary table's primary key index directly 
-4. **Avoids the sorting**: The index is already sorted by total quantity 
+3. **Efficient indexing**: It leverages the summary table's primary key index directly
+
+4. **Avoids the sorting**: The index is already sorted by total quantity
 
 **Before Optimization:**
 
@@ -319,8 +324,8 @@ Using the `monthly_report` summary table provides two main advantages:
 SELECT CONCAT(c.first_name, ' ', c.last_name) AS customer_name, SUM(o.total_amount) AS total_amount
 FROM `order` o JOIN  customer c
 ON c.id = o.customer_id
-WHERE 
-	o.order_date >= DATE_FORMAT(CURRENT_DATE - INTERVAL 1 MONTH, '%Y-%m-01') AND 
+WHERE
+	o.order_date >= DATE_FORMAT(CURRENT_DATE - INTERVAL 1 MONTH, '%Y-%m-01') AND
     o.order_date < DATE_FORMAT(CURRENT_DATE, '%Y-%m-01')
 GROUP BY c.id
 HAVING total_amount > 500;
@@ -331,8 +336,8 @@ HAVING total_amount > 500;
 ```sql
 SELECT CONCAT(co.first_name, ' ', co.last_name) AS customer_name, SUM(co.total_amount) AS total_amount
 FROM customer_orders co
-WHERE 
-	co.order_date >= DATE_FORMAT(CURRENT_DATE - INTERVAL 1 MONTH, '%Y-%m-01') AND 
+WHERE
+	co.order_date >= DATE_FORMAT(CURRENT_DATE - INTERVAL 1 MONTH, '%Y-%m-01') AND
     co.order_date < DATE_FORMAT(CURRENT_DATE, '%Y-%m-01')
 GROUP BY co.customer_id, customer_name
 HAVING total_amount > 500;
