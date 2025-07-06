@@ -1,6 +1,6 @@
 CREATE TABLE category (
 	id INT UNSIGNED AUTO_INCREMENT,
-    name VARCHAR(50) NOT NULL CHECK (TRIM(name) <> ''),
+    name VARCHAR(50) UNIQUE NOT NULL CHECK (TRIM(name) <> ''),
 	created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     
@@ -16,28 +16,32 @@ CREATE TABLE product (
     category_id INT UNSIGNED NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    author_id INT UNSIGNED,
     
     PRIMARY KEY(id),
-    FOREIGN KEY(category_id) REFERENCES category(id)
+    FOREIGN KEY(category_id) REFERENCES category(id),
+    FOREIGN KEY(author_id) REFERENCE customer(id)
 );
 
 CREATE TABLE customer (
 	id INT UNSIGNED AUTO_INCREMENT,
-    first_name VARCHAR(50) CHECK(TRIM(first_name) <> '' OR first_name IS NULL),
-    last_name VARCHAR(50) CHECK(TRIM(last_name) <> '' OR last_name IS NULL),
+    first_name VARCHAR(50),
+    last_name VARCHAR(50),
     email VARCHAR(255) UNIQUE NOT NULL,
-    password CHAR(60) UNIQUE NOT NULL INVISIBLE,
-    
+    password CHAR(60) NOT NULL INVISIBLE,
+	created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,    
+
     PRIMARY KEY(id)
 );
 
-CREATE TABLE `order`(
+CREATE TABLE `order` (
 	id INT UNSIGNED AUTO_INCREMENT,
     order_date DATE NOT NULL,
 	created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     customer_id INT UNSIGNED NOT NULL,
-    total_amount DECIMAL(12, 2) CHECK (total_amount >= 0.00 OR total_amount IS NULL),
+    total_amount DECIMAL(12, 2) NOT NULL CHECK (total_amount >= 0.00),
     
     PRIMARY KEY(id),
     INDEX (order_date),
@@ -58,12 +62,12 @@ CREATE TABLE order_item (
 -- SUMMARY TABLE FOR THE DAILY REVENUE 
 CREATE TABLE daily_report(
 	order_date DATE NOT NULL PRIMARY KEY,
-	revenue DECIMAL(12, 2)
+	revenue DECIMAL(12, 2) NOT NULL
 );
 
--- SUMMARY TABLE FOR THE MONTHLY TOP SELLING 5 PRODUCTS (PER UNITS)
+-- SUMMARY TABLE FOR THE MONTLY TOP SELLING 5 PRODUCTS (PER UNITS)
 CREATE TABLE monthly_report (
-	sale_month DATE,
+	sale_month DATE, # stored as the first of the month (2021-01-01, 2021-02-01, etc.)
     product_id INT UNSIGNED,
     product_name VARCHAR(50),
     total_quantity INT UNSIGNED,

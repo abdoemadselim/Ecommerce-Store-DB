@@ -14,6 +14,18 @@ To run and test the queries, here's the sample data files
 [`small_data_set-1000orders.sql`](./assets/order_data-1000records.sql),
 [`large_data_set-10000orders.sql`](./assets/order_data-10000records.sql).
 
+### 📚 Queries Table of Contents
+	🔎 1. SQL query to generate a daily report of the total revenue for a specific date
+
+	🎯 2. SQL query to generate a monthly report of the top-selling products in a given month
+
+	💰 3. SQL query to retrieve a list of customers who have placed orders totaling more than $500 in the past month
+
+	📅 4. SQL query to search for all products with the word "camera" in either the product name or description.
+
+	👥 5. SQL query to suggest popular products in the same category for the same author excluding the purchased product from the recommendations?
+
+
 ### 📊 Query Optimizations
 
 reports (daily, monthly, and customer-based) queries using normalized VS denormalized tables
@@ -412,3 +424,27 @@ Execution time: 2.14s
 
 * On **small datasets**, the join overhead is negligible, and both approaches perform similarly.
 * On **larger datasets**, the denormalized table **significantly reduces query execution time** by eliminating join operations and reducing random I/O.
+
+### 🔎 4. Search for all products with the word "camera" in either the product name or description.
+```sql
+ALTER TABLE product ADD FULLTEXT INDEX `fulltext`(name, description);
+
+SELECT id, name, price, description
+FROM product
+WHERE MATCH(name, description) AGAINST ('camera');
+```
+
+### 🔎 5. Suggest popular products in the same category for the same author, excluding the purchased product from the recommendations
+```sql
+SELECT p.id, p.name, SUM(quantity) AS sales_count
+FROM product p 
+JOIN order_item oi ON oi.product_id = p.id
+WHERE id <> 20 AND (category_id, author_id) IN ( 
+	SELECT category_id, author_id
+	FROM product
+	WHERE id = 20
+)
+GROUP BY p.id, p.name
+ORDER BY sales_count DESC
+LIMIT 10;
+```
