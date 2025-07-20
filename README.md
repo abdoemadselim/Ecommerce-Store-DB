@@ -25,6 +25,9 @@ To run and test the queries, here's the sample data files
 
 	👥 5. SQL query to suggest popular products in the same category for the same author excluding the purchased product from the recommendations?
 
+	🎯 6. A transaction query to lock the row with product id = 211 from being updated
+
+	🔎 7. on query to lock the field (quantity) with product id = 211 from being updated
 
 ### 📊 Query Optimizations
 
@@ -447,4 +450,18 @@ WHERE id <> 20 AND (category_id, author_id) IN (
 GROUP BY p.id, p.name
 ORDER BY sales_count DESC
 LIMIT 10;
+```
+
+### 🔎 6. A transaction query to lock the row with product id = 211 from being updated
+```sql
+SELECT *
+FROM product
+WHERE id = 211 LOCK IN SHARE MODE;
+```
+
+### 🔎 7. A transaction query to lock the field (quantity) with product id = 211 from being updated (No shared lock on a field in mysql, thus the same logic can be applied using a row-level lock)
+```sql
+SELECT *
+FROM product
+WHERE id = 211 LOCK IN SHARE MODE;
 ```
