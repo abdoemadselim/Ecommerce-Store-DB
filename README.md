@@ -27,7 +27,7 @@ To run and test the queries, here's the sample data files
 
 	🎯 6. A transaction query to lock the row with product id = 211 from being updated
 
-	🔎 7. on query to lock the field (quantity) with product id = 211 from being updated
+	🔎 7. A transaction query to lock the field (quantity) with product id = 211 from being updated
 
 ### 📊 Query Optimizations
 
