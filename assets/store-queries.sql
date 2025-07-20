@@ -78,3 +78,13 @@ WHERE id <> 20 AND category_id IN (
 GROUP BY p.id, p.name
 ORDER BY sales_count DESC
 LIMIT 10;
+
+-- A transaction to lock the row with product id = 211 from being updated
+SELECT *
+FROM product
+WHERE id = 211 LOCK IN SHARE MODE;
+
+-- A transaction to lock the field quantity with product id = 211 from being updated (No shared lock on a field in mysql, thus the same logic can be applied using a row-level lock)
+SELECT *
+FROM product
+WHERE id = 211 LOCK IN SHARE MODE;
