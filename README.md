@@ -14,6 +14,8 @@ To run and test the queries, here's the sample data files
 [`small_data_set-1000orders.sql`](./assets/order_data-1000records.sql),
 [`large_data_set-10000orders.sql`](./assets/order_data-10000records.sql).
 
+You can also use the attached generated_random.sql file which has functions to generate 5 Million orders
+
 ### 📚 Queries Table of Contents
 	🔎 1. SQL query to generate a daily report of the total revenue for a specific date
 
