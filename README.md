@@ -29,6 +29,16 @@ To run and test the queries, here's the sample data files
 
 	🔎 7. A transaction query to lock the field (quantity) with product id = 211 from being updated
 
+	🎯 8. SQL query to calculate total number of products in each category
+
+	👥 9. SQL query to list top customers by total spending
+
+	🔎 10. A transaction query to lock the field (quantity) with product id = 211 from being updated
+
+	🔎 11. SQL query to list of product with less than 10 items in stock
+
+	🎯 12. SQL query to calculate the generated Revenue from each category
+
 ### 📊 Query Optimizations
 
 reports (daily, monthly, and customer-based) queries using normalized VS denormalized tables
@@ -196,9 +206,9 @@ Each section below compares the **original query** with its **optimized version*
 
 #### Sample output
 ```sql
-| order_date | revenue   |
-|------------|-----------|
-| 2024-01-10 | 30248.92  |
+| order_date | revenue  |
+| ---------- | -------- |
+| 2024-01-10 | 30248.92 |
 ```
 
 #### 🔍 Original Query
@@ -253,13 +263,13 @@ Using the summary table provides two main advantages:
 
 #### Sample output
 ```sql
-| sale_month | product_id | product_name      | total_quantity |
-|------------|------------|-------------------|----------------|
-| 2022-01-01 | 25         | Wireless Mouse    | 124            |
-| 2022-01-01 | 74         | Gaming Keyboard   | 119            |
-| 2022-01-01 | 72         | USB-C Cable       | 102            |
-| 2022-01-01 | 75         | USB-C Cable2      | 90             |
-| 2022-01-01 | 90         | USB-C Cable3      | 80             |
+| sale_month | product_id | product_name    | total_quantity |
+| ---------- | ---------- | --------------- | -------------- |
+| 2022-01-01 | 25         | Wireless Mouse  | 124            |
+| 2022-01-01 | 74         | Gaming Keyboard | 119            |
+| 2022-01-01 | 72         | USB-C Cable     | 102            |
+| 2022-01-01 | 75         | USB-C Cable2    | 90             |
+| 2022-01-01 | 90         | USB-C Cable3    | 80             |
 ```
 
 #### 🔍 Original Query
@@ -464,4 +474,189 @@ WHERE id = 211 LOCK IN SHARE MODE;
 SELECT *
 FROM product
 WHERE id = 211 LOCK IN SHARE MODE;
+```
+
+### 🔎 8. A query to retrieve the total number of products in each category
+
+* We can calculate the count runtime by joining the two tables (category, product)
+* Time: around 6 seconds
+```sql
+SELECT c.id as category_id, c.name as category_name, COUNT(*) as products_count
+FROM category c
+JOIN product p
+ON c.id = p.category_id
+GROUP BY c.id;
+```
+
+* or we can do the aggregation and calculate the number of products per category before the join
+* So instead of joining 10000 products rows with 100 category rows as above
+* We join only 100 category rows with 100 category count rows
+```sql
+SELECT c.id as category_id, c.name as category_name, count as products_count
+FROM category c 
+JOIN (
+	SELECT category_id, COUNT(*) as count
+	FROM product
+	GROUP BY category_id
+) p ON p.category_id = c.id
+```
+
+
+* For the above two queries, it takes a couple of seconds (e.g. 6 seconds) to get the final result, 
+* A better approach might be pre-calculating the count of each category as an additional column on the category table
+* And for whenever a new product is added/removed, the corresponding category count is updated
+
+- a new product_count col is added, and filled with all products_count
+```sql
+ALTER TABLE category 
+ADD COLUMN product_count INT UNSIGNED;
+
+UPDATE category c JOIN
+(
+	SELECT category_id, COUNT(*) as cnt
+	FROM product
+	GROUP BY category_id
+) p ON c.id = p.category_id
+SET c.product_count = p.cnt;
+```
+
+- We can then create two triggers to update the category count whenever a product is added/removed
+```sql
+delimiter //
+CREATE TRIGGER after_product_insert
+AFTER INSERT ON product 
+FOR EACH ROW 
+BEGIN
+	UPDATE category 
+    SET product_count = product_count + 1
+    WHERE id = NEW.category_id;
+END; //
+
+CREATE TRIGGER after_product_delete
+AFTER DELETE ON product 
+FOR EACH ROW 
+BEGIN
+	UPDATE category 
+    SET product_count = product_count + 1
+    WHERE id = OLD.category_id;
+END; //
+delimiter ;
+```
+
+- and just select the products count from the category table itself
+- Time: around 100 milliseconds
+```sql
+ SELECT id, name, product_counts
+ FROM category
+```
+
+### 🔎 9. A query to find the top customers by total spending
+- We can join the order and customer tables and calculate the total_spending for each customer
+- But that's not applicable at all for large tables. Takes around 187 seconds = around 3 minutes :)
+```sql
+SELECT customer.id, customer.full_name, SUM(total_amount) as amount
+FROM customer JOIN `order`
+ON customer.id = `order`.customer_id
+GROUP BY customer_id
+ORDER BY amount DESC
+LIMIT 10;
+``` 
+
+- another approach would be using the denormalized table (customer_orders)
+- Time: around 30 seconds with no max, or around 60 seconds with max
+``` sql
+SELECT customer_id, MAX(full_name) as full_name, SUM(total_amount) as amount
+FROM customer_orders
+GROUP BY customer_id
+ORDER BY amount DESC
+LIMIT 10;
+
+OR (TO AVOID calling MAX function for each row)
+
+SELECT c1.full_name, c2.amount FROM
+customer c1 JOIN (
+	SELECT customer_id, SUM(total_amount) as amount
+	FROM customer_orders
+	GROUP BY customer_id
+	ORDER BY amount DESC
+	LIMIT 10
+) c2
+ON c1.id = c2.customer_id;
+
+```
+
+- a better and faster approach, but would lead a slower writing to orders is using a pre-computed total_amount
+- added to the customer table/ or customer_orders table
+- whenever an order is placed/updated/deleted, the customer total_spending is updated as well
+- Time: around 3 seconds
+```sql
+ALTER TABLE customer 
+ADD COLUMN total_spending INT UNSIGNED default 0;
+
+SELECT * FROM customer
+ORDER BY total_spending DESC
+LIMIT 10;
+```
+
+### 🔎 11. A query to list the products that have less than 10 in stock
+- Time: around 5 seconds 
+```sql
+SELECT id, name
+FROM product
+WHERE stock_quantity < 10
+```
+
+- An improvement would be adding an index on stock_quantity 
+- Time: if MySql uses it, 0.2 seconds (200 milliseconds)
+- MySql would head to using it in two cases
+	- The selectivity of it is high (there are many unique stock quantity (depends on the nature of business))
+	- It's a covering index (Only the id column is selected)
+- Another approach to make MySql always use it is making a covering index over the used columns with stock quantity  (e.g. stock_quantity, name)
+
+
+### 🔎 12. A query to calculate the revenue generated from each category
+- The direct approach is to join the 3 tables (category, product, order_item)
+- Time: 600 seconds = 10 minutes :)
+```sql
+SELECT c.id as category_id, c.name as category_name, SUM(oi.unit_price * oi.quantity) AS revenue
+FROM category c
+JOIN product p ON p.category_id = c.id
+JOIN order_item oi ON oi.product_id = p.id
+GROUP BY c.id;
+```
+
+- A way to improve it, is via adding the category id to the order item as well, so we can avoid one join
+- Time: 530 seconds --> no much difference
+```sql
+ALTER TABLE order_item
+ADD COLUMN category_id INT UNSIGNED NOT NULL;
+
+UPDATE order_item oi JOIN 
+(
+ SELECT id, category_id  
+ FROM product 
+) p
+ON p.id = oi.product_id
+SET oi.category_id = p.category_id;
+
+SELECT c.id, c.name, SUM(oi.unit_price * oi.quantity) AS revenue
+FROM category c
+JOIN order_item oi ON oi.category_id = c.id
+GROUP BY c.id;
+```
+ 
+
+- a better way is to create a summary table
+- and update it whenever a new order is placed/removed/updated
+```sql
+CREATE TABLE category_revenue (
+	category_id INT UNSIGNED NOT NULL PRIMARY KEY,
+    category_name VARCHAR(50) UNIQUE NOT NULL,
+    revenue DECIMAL(12, 2) NOT NULL DEFAULT(0)
+);
+```
+- Then we can use it
+- Time: 0.03 second = 3 milliseconds
+```sql
+SELECT * FROM category_revenue;
 ```

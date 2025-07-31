@@ -88,3 +88,6 @@ WHERE id = 211 LOCK IN SHARE MODE;
 SELECT *
 FROM product
 WHERE id = 211 LOCK IN SHARE MODE;
+
+
+-- A query to retrieve the total number of products in each category
